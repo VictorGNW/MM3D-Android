@@ -28,6 +28,11 @@ target_link_libraries(triaevum_android_abi_probe PRIVATE triaevum_title_whole_ao
 
 option(TRIAEVUM_ANDROID_BUILD_NRI "Cross-build the same pinned Vulkan/NRI core" ON)
 if(TRIAEVUM_ANDROID_BUILD_NRI)
+    option(TRIAEVUM_ANDROID_BUILD_NRI_PRESENT_PROBE "Enable the standalone NRI NativeActivity probe" OFF)
+    set(nri_android_patch "${root}/runtime/three_ds_recomp/cmake/patches/nri_android_platform.cmake")
+    if(TRIAEVUM_ANDROID_BUILD_NRI_PRESENT_PROBE)
+        set(nri_android_patch "${CMAKE_CURRENT_LIST_DIR}/nri_android_present.cmake")
+    endif()
     set(NRI_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
     set(NRI_ENABLE_VK_SUPPORT ON CACHE BOOL "" FORCE)
     set(NRI_ENABLE_NONE_SUPPORT OFF CACHE BOOL "" FORCE)
@@ -39,10 +44,22 @@ if(TRIAEVUM_ANDROID_BUILD_NRI)
     FetchContent_Declare(nri
         URL https://github.com/NVIDIA-RTX/NRI/archive/4b485316463969f182db15e67aad2aec2f40a3d7.tar.gz
         PATCH_COMMAND "${CMAKE_COMMAND}" -DNRI_SOURCE_DIR=<SOURCE_DIR>
-            -P "${root}/runtime/three_ds_recomp/cmake/patches/nri_android_platform.cmake")
+            -P "${nri_android_patch}")
     FetchContent_MakeAvailable(nri)
     add_executable(triaevum_android_nri_probe nri_probe.cpp)
     target_link_libraries(triaevum_android_nri_probe PRIVATE NRI ${CMAKE_DL_LIBS} log)
+
+    if(TRIAEVUM_ANDROID_BUILD_NRI_PRESENT_PROBE)
+        set(TRIAEVUM_ANDROID_NATIVE_APP_GLUE
+            "${CMAKE_ANDROID_NDK}/sources/android/native_app_glue")
+        add_library(triaevum_android_nri_present_probe SHARED
+            nri_android_present_probe.cpp
+            "${TRIAEVUM_ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c")
+        target_include_directories(triaevum_android_nri_present_probe PRIVATE
+            "${TRIAEVUM_ANDROID_NATIVE_APP_GLUE}")
+        target_link_libraries(triaevum_android_nri_present_probe PRIVATE
+            NRI ${CMAKE_DL_LIBS} android log)
+    endif()
 endif()
 
 set(TRIAEVUM_TRANSLATED_TITLE_DIR "" CACHE PATH "Verified translated title sources (publisher only)")
