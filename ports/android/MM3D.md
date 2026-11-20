@@ -1,6 +1,6 @@
 # Build MM3D-Android
 
-MM3D-Android uses TriAevum's **Moonfall Curse** Android flavor (`mc`), whose package ID is `org.triaevum.moonfallcurse`. The APK contains the ARM64 runtime, a precompiled title module and Forge. On the phone, Forge uses the system file picker and prepares the game from your own decrypted **EUR** cartridge dump matching the [supported revision catalog](../../titles/mm3d/forge/supported_revisions.json). The USA v1.1 dump documented by MM3D-Mobile was used with the older prototype.
+MM3D-Android uses TriAevum's **Moonfall Curse** Android flavor (`mc`), whose package ID is `org.triaevum.moonfallcurse`. The APK contains the ARM64 runtime, a precompiled title module and Forge. On the phone, Forge uses the system file picker and prepares the game from your own decrypted cartridge dump matching the [EUR recipe](../../titles/mm3d/forge/supported_revisions.json) or the [Android USA v1.1 recipe](../../titles/mm3d/forge/android_usa_v11.json). The two revisions share one native title module and one A32 registry because their executable is byte-identical. Forge verifies each revision’s own exheader and RomFS. USA v1.1 uses the English, French and Spanish archives in its own RomFS.
 
 ## Prepare the publisher build
 

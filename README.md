@@ -10,7 +10,7 @@ MM3D-Android is an experimental native Android recompilation of **The Legend of 
 
 ## Build and test
 
-Follow the [MM3D Android build guide](ports/android/MM3D.md) for the Moonfall Curse inputs, build command and device checks. Forge's current MM3D recipe expects a matching decrypted **EUR** cartridge dump from your own copy. See the [supported revision catalog](titles/mm3d/forge/supported_revisions.json) and the [Android release guide](docs/TRIAEVUM_ANDROID_RELEASE.md) for package and signing details.
+Follow the [MM3D Android build guide](ports/android/MM3D.md) for the Moonfall Curse inputs, build command and device checks. The Android Forge package accepts matching decrypted **EUR** and **USA v1.1** cartridge dumps from your own copy. The [EUR catalog](titles/mm3d/forge/supported_revisions.json) and [Android USA v1.1 recipe](titles/mm3d/forge/android_usa_v11.json) define the exact inputs. Both revisions still need on-device qualification.
 
 When reporting an issue, include the APK or commit version, phone model, Android version, GPU, reproduction steps and the relevant diagnostics. The build guide shows how to collect logs with ADB.
 
