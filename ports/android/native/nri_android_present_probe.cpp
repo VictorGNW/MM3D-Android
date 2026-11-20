@@ -25,6 +25,7 @@ struct Probe {
     nri::CommandBuffer* commandBuffer{};
     nri::Fence* acquireFence{};
     nri::Fence* releaseFence{};
+    nri::Texture* const* textures{};
     std::vector<nri::Descriptor*> colorViews;
     uint32_t width{};
     uint32_t height{};
@@ -56,6 +57,7 @@ static void destroy(Probe& p) {
     p.commandBuffer = nullptr; p.commandAllocator = nullptr;
     for (auto* view : p.colorViews) if (view && p.core.DestroyDescriptor) p.core.DestroyDescriptor(view);
     p.colorViews.clear();
+    p.textures = nullptr;
     if (p.acquireFence && p.core.DestroyFence) p.core.DestroyFence(p.acquireFence);
     if (p.releaseFence && p.core.DestroyFence) p.core.DestroyFence(p.releaseFence);
     p.acquireFence = nullptr; p.releaseFence = nullptr;
@@ -97,20 +99,20 @@ static bool createDeviceAndSwapChain(Probe& p) {
     if (!checkNri(p.swapChainApi.CreateSwapChain(*p.device, desc, p.swapChain), "NRI CreateSwapChain") || !p.swapChain) return false;
 
     uint32_t imageCount = 0;
-    nri::Texture* const* textures = p.swapChainApi.GetSwapChainTextures(*p.swapChain, imageCount);
-    if (!textures || imageCount < 2) { LOGE("NRI swapchain returned fewer than two images"); return false; }
-    const nri::TextureDesc& first = p.core.GetTextureDesc(*textures[0]);
+    p.textures = p.swapChainApi.GetSwapChainTextures(*p.swapChain, imageCount);
+    if (!p.textures || imageCount < 2) { LOGE("NRI swapchain returned fewer than two images"); return false; }
+    const nri::TextureDesc& first = p.core.GetTextureDesc(*p.textures[0]);
     p.width = first.width; p.height = first.height;
     if (!p.width || !p.height) { LOGE("NRI swapchain returned an empty image extent"); return false; }
 
     p.colorViews.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i) {
-        const nri::TextureDesc& texture = p.core.GetTextureDesc(*textures[i]);
+        const nri::TextureDesc& texture = p.core.GetTextureDesc(*p.textures[i]);
         if (texture.width != first.width || texture.height != first.height || texture.format != first.format) {
             LOGE("NRI swapchain images have inconsistent descriptions"); return false;
         }
         nri::TextureViewDesc viewDesc{};
-        viewDesc.texture = textures[i];
+        viewDesc.texture = p.textures[i];
         viewDesc.type = nri::TextureView::COLOR_ATTACHMENT;
         viewDesc.format = texture.format;
         viewDesc.mipNum = 1;
@@ -153,13 +155,26 @@ static bool createDeviceAndSwapChain(Probe& p) {
     return true;
 }
 
-static void draw(Probe& p) {
-    if (!p.ready) return;
+static bool draw(Probe& p) {
     uint32_t index = 0;
-    if (!checkNri(p.swapChainApi.AcquireNextTexture(*p.swapChain, *p.acquireFence, index), "NRI AcquireNextTexture")) return;
-    if (index >= p.colorViews.size()) { LOGE("NRI returned an invalid swapchain image index"); return; }
+    if (!checkNri(p.swapChainApi.AcquireNextTexture(*p.swapChain, *p.acquireFence, index), "NRI AcquireNextTexture")) return false;
+    if (index >= p.colorViews.size()) { LOGE("NRI returned an invalid swapchain image index"); return false; }
     p.core.ResetCommandAllocator(*p.commandAllocator);
-    if (!checkNri(p.core.BeginCommandBuffer(*p.commandBuffer, nullptr), "NRI BeginCommandBuffer")) return;
+    if (!checkNri(p.core.BeginCommandBuffer(*p.commandBuffer, nullptr), "NRI BeginCommandBuffer")) return false;
+
+    nri::TextureBarrierDesc transition{};
+    transition.texture = p.textures[index];
+    // The entire image is cleared, so its previous contents can be discarded.
+    transition.before = {nri::AccessBits::NONE, nri::Layout::UNDEFINED, nri::StageBits::NONE};
+    transition.after = {nri::AccessBits::COLOR_ATTACHMENT_WRITE, nri::Layout::COLOR_ATTACHMENT,
+                        nri::StageBits::COLOR_ATTACHMENT};
+    transition.mipNum = 1;
+    transition.layerNum = 1;
+    transition.planes = nri::PlaneBits::COLOR;
+    nri::BarrierDesc barriers{};
+    barriers.textures = &transition;
+    barriers.textureNum = 1;
+    p.core.CmdBarrier(*p.commandBuffer, barriers);
 
     nri::AttachmentDesc color{};
     color.descriptor = p.colorViews[index];
@@ -179,27 +194,31 @@ static void draw(Probe& p) {
     p.core.CmdSetPipeline(*p.commandBuffer, *p.pipeline);
     p.core.CmdDraw(*p.commandBuffer, triangle);
     p.core.CmdEndRendering(*p.commandBuffer);
-    if (!checkNri(p.core.EndCommandBuffer(*p.commandBuffer), "NRI EndCommandBuffer")) return;
+    transition.before = transition.after;
+    transition.after = {nri::AccessBits::NONE, nri::Layout::PRESENT, nri::StageBits::NONE};
+    p.core.CmdBarrier(*p.commandBuffer, barriers);
+    if (!checkNri(p.core.EndCommandBuffer(*p.commandBuffer), "NRI EndCommandBuffer")) return false;
 
     nri::FenceSubmitDesc wait{};
     wait.fence = p.acquireFence;
     wait.stages = nri::StageBits::COLOR_ATTACHMENT;
     nri::FenceSubmitDesc signal{};
     signal.fence = p.releaseFence;
-    signal.stages = nri::StageBits::COLOR_ATTACHMENT;
+    signal.stages = nri::StageBits::ALL;
     nri::CommandBuffer* commandBuffers[] = {p.commandBuffer};
     nri::QueueSubmitDesc submit{};
     submit.waitFences = &wait; submit.waitFenceNum = 1;
     submit.commandBuffers = commandBuffers; submit.commandBufferNum = 1;
     submit.signalFences = &signal; submit.signalFenceNum = 1;
-    if (!checkNri(p.core.QueueSubmit(*p.queue, submit), "NRI QueueSubmit")) return;
+    if (!checkNri(p.core.QueueSubmit(*p.queue, submit), "NRI QueueSubmit")) return false;
     const nri::Result present = p.swapChainApi.QueuePresent(*p.swapChain, *p.releaseFence);
-    if (!checkNri(present, "NRI QueuePresent")) return;
-    if (!checkNri(p.core.QueueWaitIdle(p.queue), "NRI QueueWaitIdle")) return;
+    if (!checkNri(present, "NRI QueuePresent")) return false;
+    if (!checkNri(p.core.QueueWaitIdle(p.queue), "NRI QueueWaitIdle")) return false;
     if (!p.loggedPresent) {
         LOGI("NRI CmdDraw -> QueueSubmit -> QueuePresent succeeded; orange triangle submitted");
         p.loggedPresent = true;
     }
+    return true;
 }
 
 static void onCommand(android_app* app, int32_t command) {
@@ -220,7 +239,7 @@ void android_main(android_app* app) {
             if (source) source->process(app, source);
             if (app->destroyRequested) break;
         }
-        if (p.ready) draw(p);
+        if (!app->destroyRequested && p.ready && !draw(p)) destroy(p);
     }
     destroy(p);
 }

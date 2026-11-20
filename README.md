@@ -1,28 +1,21 @@
-# Majora's Mask 3D Recomp for Android
+# MM3D-Android
 
-An experimental Android port of [MM3D-PC](https://github.com/Volpe34/MM3D-PC), based on the [TriAevum runtime](https://github.com/coccofresco/TriAevum). The build translates the game's 3DS ARM code ahead of time into a native ARM64 module. On Android, SDL2 manages the window and input, and the renderer uses NRI and Vulkan.
-
-The build requires your own decrypted **Majora's Mask 3D USA v1.1** dump (`.3ds` or `.cci`). The source repository does not include the ROM, the generated game module, or game assets.
+MM3D-Android is an experimental native Android recompilation of **The Legend of Zelda: Majora's Mask 3D**. The port uses the [TriAevum runtime](https://github.com/coccofresco/TriAevum), with the translated Nintendo 3DS code compiled ahead of time for ARM64. On Android, SDL2 handles the window and input, and NRI runs the renderer on Vulkan.
 
 ## Current status
 
-- **Gameplay reached** on a Motorola Edge 60 with Android 17 and a Mali-G615 MC2. Frame pacing was reported stable during a short gameplay test. The driver supports Vulkan 1.3, and the NRI runtime used Vulkan 1.2. Other devices, longer play sessions, and saving still need testing.
-- **Android controls:** the touch overlay includes a layout editor, fullscreen mode, and a skip button for the opening sequence. The overlay is configured to hide when a physical gamepad connects and return when the last one disconnects. That transition still needs a test with a real controller.
-- **Phone compilation verified in Termux:** the phone compiled and linked the full ARM64 game module from C++ translated on a PC. The Android app loaded that module from private storage and reached the title screen.
-- **Standalone installer in development:** the prototype imports a decrypted USA v1.1 dump, runs the bundled Python, Capstone, Clang and LLD, and shows progress, estimated time, and cancellation. ROM import and small C++ builds passed on device. The complete flow from ROM selection to gameplay within a single APK still needs to pass.
+- **MM3D-Android** uses the Moonfall Curse build profile (`mc`, `org.triaevum.moonfallcurse`). It targets ARM64 phones running Android 10 (API 29) or later with a compatible Vulkan driver. The app contains the Forge installer and an editable touch overlay derived from Azahar.
+- **Hardware validation is pending for this build.** ROM import through Forge, gameplay, saving, touch and controller input, and app resume still need end-to-end validation for Moonfall Curse on Android.
+- **Previous MM3D-Mobile prototype.** A brief gameplay test reached in-game play on a Motorola Edge 60 with a Mali-G615 MC2 using a decrypted USA v1.1 dump. The prototype also compiled the title module in Termux from C++ generated on a PC. Those results apply to the [MM3D-Mobile prototype](https://github.com/VictorGNW/MM3D-Mobile/tree/46caf82a3014661b9407aa38aa4e57cb2bcda71e).
 
-## Build and install
+## Build and test
 
-Build on Linux x86-64. On Bazzite, use an Ubuntu Distrobox for the build tools. You need Android SDK Platform 35, NDK r29, JDK 17, Gradle 8.13, CMake 3.30 or newer, Ninja, Python 3, and ADB.
+Follow the [MM3D Android build guide](ports/android/MM3D.md) for the Moonfall Curse inputs, build command and device checks. Forge's current MM3D recipe expects a matching decrypted **EUR** cartridge dump from your own copy. See the [supported revision catalog](titles/mm3d/forge/supported_revisions.json) and the [Android release guide](docs/TRIAEVUM_ANDROID_RELEASE.md) for package and signing details.
 
-1. Prepare your own dump with the upstream [MM3D-PC Setup](https://github.com/Volpe34/MM3D-PC). Keep the installation directory and its `work/` subdirectory.
-2. Follow the [Android build guide](ports/android/MM3D.md) to compile the title and runtime for ARM64, package the debug APK, and copy the private game data to the phone.
-3. Launch the app. The guide uses the package ID `org.triaevum.android.mm3d` so the MM3D build can be installed alongside OoT3D Recomp.
+When reporting an issue, include the APK or commit version, phone model, Android version, GPU, reproduction steps and the relevant diagnostics. The build guide shows how to collect logs with ADB.
 
-The build produces `ports/android/app/build/outputs/apk/debug/app-debug.apk`. Keep your dump, generated title module, APK containing that module, and staged data private.
+## Credits and licensing
 
-## Reporting problems
+Thanks to the [TriAevum](https://github.com/coccofresco/TriAevum) contributors, the [MM3D-PC](https://github.com/Volpe34/MM3D-PC) project that provided the basis for MM3D-Mobile, and the [Azahar](https://github.com/azahar-emu/azahar) contributors whose overlay is used by the Android app. See the [third-party notices](THIRD_PARTY_NOTICES.md) and [license scope](LICENSE_SCOPE.md) for component credits and terms.
 
-Include your phone model, Android version, GPU, the scene where the issue occurred, and what you were doing. The app writes `logs/native-stdout.log` and `logs/native-stderr.log` under its data directory. See the [Android build guide](ports/android/MM3D.md) for the ADB command to read them.
-
-The upstream [MM3D-PC project](https://github.com/Volpe34/MM3D-PC) documents the desktop port and credits. See [LICENSE_SCOPE.md](LICENSE_SCOPE.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the licensing details in this fork.
+Majora's Mask 3D and its game assets belong to their respective rights holders. This is an unofficial fan project. Use your own dump and keep ROM images, extracted game data, keys and locally generated title files private.

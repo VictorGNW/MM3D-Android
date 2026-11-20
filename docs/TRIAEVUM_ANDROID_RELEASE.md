@@ -24,7 +24,8 @@ decrypted cartridge image, chosen through the system document picker.
 
 `tools/android/android_release.py --title <oot3d|mm3d> --ndk <ndk> --work <build dir> --translated-sources <dir>
 --reference-package <desktop release> --source-commit <commit> --gradle <gradle>` prints every command below for
-the title, with the title's facts applied. `--run` executes them in order and stops at the first failure. Staging
+the title, with the title's facts applied. Moonfall Curse also requires `--a32-registry <a32_generated_overlay_r18 dir>`.
+See the [MM3D Android build guide](../ports/android/MM3D.md) for the full command. `--run` executes them in order and stops at the first failure. Staging
 refuses libraries that fail `tools/android/android_elf_checks.py`.
 
 1. **Translated sources.** Use the translated title sources of the title's desktop release (the same sources, never
@@ -47,7 +48,7 @@ refuses libraries that fail `tools/android/android_elf_checks.py`.
    signature scheme and domain). On the device `ForgeNative.verifyPackage` checks that signature under the
    publisher keys built into Forge (no developer override on Android) and then the size and SHA-256 of every
    package file; the APK audit refuses an APK without the signature.
-5. **APK.** `gradlew :app:assemble<Eot|Mc>Release -PtriaevumSdlSource=… -PtriaevumNativeStage=<stage>
+5. **APK.** `gradle -p ports/android :app:assemble<Eot|Mc>Release -PtriaevumSdlSource=… -PtriaevumNativeStage=<stage>
    -PtriaevumForgePackage=<dir>`.
 6. **Audit.** Run `aapt2 dump badging` and `apksigner verify --print-certs`, then
    `android_release_policy.py audit <apk> --title <title> --badging <file> --signer-sha256 <sha>
