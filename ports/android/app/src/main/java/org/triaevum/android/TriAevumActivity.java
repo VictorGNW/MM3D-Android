@@ -61,6 +61,22 @@ public final class TriAevumActivity extends SDLActivity {
             StartupDiagnostics.stage(this, "libraries_failed " + error.getClass().getName());
             throw error;
         }
+        if (getIntent().getBooleanExtra("org.triaevum.android.USE_TURNIP", false)) {
+            try {
+                System.loadLibrary("triaevum_vulkan");
+                String directory = getApplicationInfo().nativeLibraryDir;
+                if (NativeHostBridge.INSTANCE.selectTurnip(directory)) {
+                    String loader = new File(directory, "libtriaevum_vulkan.so").getAbsolutePath();
+                    Os.setenv("SDL_VULKAN_LIBRARY", loader, true);
+                    Os.setenv("TRIAEVUM_NRI_VULKAN_LIBRARY", loader, true);
+                    StartupDiagnostics.stage(this, "turnip_selected");
+                } else {
+                    Log.w("TriAevum", "Turnip unavailable, using the system Vulkan driver");
+                }
+            } catch (UnsatisfiedLinkError | android.system.ErrnoException error) {
+                Log.w("TriAevum", "Could not use Turnip", error);
+            }
+        }
         StartupDiagnostics.stage(this, "libraries_loaded");
     }
 

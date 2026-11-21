@@ -86,4 +86,7 @@
     <string name="hd_import">Importar .zip…</string>
     <string name="hd_ready">A interface HD já está ativa no jogo instalado.</string>
     <string name="hd_progress">%1$s de %2$s</string>
+    <string name="vulkan_unsupported">O port exige Vulkan 1.1 ou superior. O aplicativo fechará em 3 segundos.</string>
+    <string name="vulkan_compatibility_pending">Esta GPU oferece Vulkan 1.1. O renderizador de compatibilidade está em desenvolvimento.</string>
+    <string name="vulkan_probe_failed">Não foi possível verificar o suporte a Vulkan.</string>
 </resources>

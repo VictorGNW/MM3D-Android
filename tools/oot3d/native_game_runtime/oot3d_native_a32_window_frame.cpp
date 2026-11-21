@@ -287,9 +287,11 @@ bool NativeA32WindowSession::RunFrame() {
     mainPerformanceHint.UpdateTarget(period);
   }
   const auto presentationTime = std::chrono::steady_clock::now();
+#if !defined(__ANDROID__)
   renderStream.Submit([&, presentationTime] {
     realtimePacer.ObservePresentation(presentationTime);
   });
+#endif
   const double presentationElapsedSeconds =
       hostArgs.FixedDeltaSeconds > 0.0
           ? hostArgs.FixedDeltaSeconds
@@ -707,6 +709,9 @@ bool NativeA32WindowSession::RunFrame() {
     inGameMenu.Update(menuInput, imGuiOwnsInput, presentationElapsedSeconds);
   }
 #endif
+#if defined(__ANDROID__)
+  ThreeDsRecomp::Input::OverlayTouchSettings().SetMenuOpen(inGameMenu.IsOpen());
+#endif
   if (nativeControlPollingState.ScriptedMenu.PressesApplied != 0U && inGameMenu.IsOpen()) ++nativeControlPollingState.ScriptedMenu.OpenFrames;
   // The first-play help card, once per installation, when the game is first
   // shown (after the preparation screen) and no other host surface is up.
@@ -781,6 +786,14 @@ bool NativeA32WindowSession::RunFrame() {
       RunGuestRefresh();
     }
     if (presentHostFrame) {
+#if defined(__ANDROID__)
+      if (titleRenderBackend != nullptr) {
+        const bool menuBackdrop = inGameMenu.IsOpen() || widescreenProjection.TopScreenPausePageRedrawActive;
+        renderStream.Submit([backend = titleRenderBackend, menuBackdrop] {
+          backend->SetMenuBackdropVisible(menuBackdrop);
+        });
+      }
+#endif
       PresentVisualFrame(presentationElapsedSeconds, visualInterpolationAlpha);
     }
     frameCount += advanceGuest ? 1U : 0U;
@@ -1052,6 +1065,9 @@ bool NativeA32WindowSession::RunFrame() {
     const auto waitEnd = std::chrono::steady_clock::now();
     rendererTiming->PacingWaitSeconds +=
         std::chrono::duration<double>(waitEnd - waitStart).count();
+#if defined(__ANDROID__)
+    realtimePacer.ObservePresentation(waitEnd);
+#endif
     window.EndFrame();
     inputLatencyTrace.ObserveFrameEnd(presentationSerial, waitStart, waitEnd,
                                       std::chrono::steady_clock::now());
