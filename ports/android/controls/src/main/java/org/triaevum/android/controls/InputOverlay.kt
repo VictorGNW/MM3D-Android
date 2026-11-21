@@ -67,12 +67,45 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         requestFocus()
     }
 
+    // Presentation changes leave all hit boxes and captured pointers intact.
+    var controlArt: TouchControlArt? = null
+        set(value) {
+            if (field === value) return
+            field = value
+            invalidate()
+        }
+
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
-        // TriAevum: a control the host draws itself is drawn here only while editing.
-        overlayButtons.forEach { if (isInEditMode || !OverlayHost.drawsControl(it.id)) it.draw(canvas) }
-        overlayDpads.forEach { if (isInEditMode || !OverlayHost.drawsControl(it.upId)) it.draw(canvas) }
-        overlayJoysticks.forEach { if (isInEditMode || !OverlayHost.drawsControl(it.joystickId)) it.draw(canvas) }
+        val art = controlArt
+        overlayButtons.forEach { button ->
+            if (button.id in TouchShortcut.slots && art?.drawShortcut(canvas, button) == true) return@forEach
+            if (art?.draw(canvas, button.id, button.bounds, button.opacity,
+                    button.status == AzaharButtonState.PRESSED) != true &&
+                (isInEditMode || !OverlayHost.drawsControl(button.id))) button.draw(canvas)
+        }
+        overlayDpads.forEach { dpad ->
+            if (art?.draw(canvas, dpad.upId, dpad.bounds, dpad.opacity, dpad.trackId != -1) != true &&
+                (isInEditMode || !OverlayHost.drawsControl(dpad.upId))) dpad.draw(canvas)
+        }
+        overlayJoysticks.forEach { joystick ->
+            if (art?.drawStick(canvas, joystick) != true &&
+                (isInEditMode || !OverlayHost.drawsControl(joystick.joystickId))) joystick.draw(canvas)
+        }
+    }
+
+    private fun expandedButtonAt(x: Int, y: Int): InputOverlayDrawableButton? {
+        if (!EmulationMenuSettings.expandedMainButtons ||
+            overlayButtons.any { it.bounds.contains(x, y) } ||
+            overlayDpads.any { it.bounds.contains(x, y) } ||
+            overlayJoysticks.any { it.bounds.contains(x, y) }) return null
+        return overlayButtons.asSequence()
+            .filter { it.id in MAIN_BUTTONS && it.trackId == -1 && it.containsExpanded(x, y) }
+            .minWithOrNull(compareBy<InputOverlayDrawableButton> {
+                val dx = it.bounds.centerX() - x
+                val dy = it.bounds.centerY() - y
+                dx * dx + dy * dy
+            }.thenBy { it.id })
     }
 
     private fun swapScreen() {
@@ -194,8 +227,10 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             var anyOverlayStateChanged = false
             var shouldUpdateView = false
             if(!hasActiveDpad && !hasActiveJoystick) {
+                val expanded = if (isActionDown && !hasActiveButtons)
+                    expandedButtonAt(xPosition, yPosition) else null
                 for (button in overlayButtons) {
-                    val stateChanged = button.updateStatus(event, pointerIndex, hasActiveButtons, this)
+                    val stateChanged = button.updateStatus(event, pointerIndex, hasActiveButtons, this, button === expanded)
                     if (!stateChanged) {
                         continue
                     }
@@ -418,6 +453,12 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     }
 
     private fun addOverlayControls(orientation: String) {
+        for (id in TouchShortcut.slots) {
+            if (EmulationMenuSettings.shortcut(id) != TouchShortcut.OFF) {
+                overlayButtons.add(initializeOverlayButton(
+                    context, R.drawable.button_a, R.drawable.button_a_pressed, id, orientation))
+            }
+        }
         if (preferences.getBoolean("buttonToggle0", true)) {
             overlayButtons.add(
                 initializeOverlayButton(
@@ -633,7 +674,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     // TriAevum: where each control is, for a host that draws them. Not while
     // the layout is edited: the overlay draws every control itself then.
     private fun publishControlBounds() {
-        if (width == 0 || height == 0 || isInEditMode) return
+        if (width == 0 || height == 0 || isInEditMode || visibility != View.VISIBLE) return
         val bounds = HashMap<Int, IntArray>()
         overlayButtons.forEach { bounds[it.id] = it.bounds.run { intArrayOf(left, top, right, bottom) } }
         overlayDpads.forEach { bounds[it.upId] = it.bounds.run { intArrayOf(left, top, right, bottom) } }
@@ -684,6 +725,13 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
     fun resetButtonPlacement() {
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val orientation = if (isLandscape) "" else "-Portrait"
+        preferences.edit().apply {
+            for (id in TouchShortcut.slots) {
+                remove("$id$orientation-X")
+                remove("$id$orientation-Y")
+            }
+        }.apply()
         if (isLandscape) {
             defaultOverlayLandscape()
         } else {
@@ -996,6 +1044,11 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     }
 
     companion object {
+        private val MAIN_BUTTONS = setOf(
+            AzaharButtonIds.BUTTON_A, AzaharButtonIds.BUTTON_B, AzaharButtonIds.BUTTON_X,
+            AzaharButtonIds.BUTTON_Y, AzaharButtonIds.TRIGGER_L, AzaharButtonIds.TRIGGER_R,
+        )
+
         private val preferences
             get() = PreferenceManager.getDefaultSharedPreferences(OverlayHost.appContext)
 
@@ -1128,10 +1181,16 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             // These were set in the input overlay configuration menu.
             val xKey = "$buttonId$orientation-X"
             val yKey = "$buttonId$orientation-Y"
-            val drawableX = preferences.getFloat(xKey, 0f).toInt()
-            val drawableY = preferences.getFloat(yKey, 0f).toInt()
             val width = overlayDrawable.width
             val height = overlayDrawable.height
+            val metrics = res.displayMetrics
+            val short = min(metrics.widthPixels, metrics.heightPixels)
+            val slotOffset = buttonId - TouchShortcut.FIRST_ID - 1
+            val defaultX = if (buttonId in TouchShortcut.slots)
+                metrics.widthPixels / 2f + slotOffset * short * 0.14f - width / 2f else 0f
+            val defaultY = if (buttonId in TouchShortcut.slots) short * 0.065f else 0f
+            val drawableX = preferences.getFloat(xKey, defaultX).toInt()
+            val drawableY = preferences.getFloat(yKey, defaultY).toInt()
 
             // Now set the bounds for the InputOverlayDrawableButton.
             // This will dictate where on the screen (and the what the size) the InputOverlayDrawableButton will be.
