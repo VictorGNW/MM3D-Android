@@ -140,14 +140,14 @@ class InstallService : Service() {
      * on) with the chosen [language]. [document] is the picked document's URI when the app holds
      * a persisted grant to it. False when a job is already running.
      */
-    fun install(descriptor: ParcelFileDescriptor, name: String, language: String?, document: String?): Boolean {
+    fun install(descriptor: ParcelFileDescriptor, name: String, language: String?, document: String?, prewarm: Boolean): Boolean {
         if (snapshot.running) {
             descriptor.close()
             return false
         }
         val rom = document?.let { RomDocument(it, name, language) }
         return begin(ForgeJob.INSTALL, getString(R.string.forge_preparing, name), rom) {
-            installRequest(descriptor, language)
+            installRequest(descriptor, language, prewarm)
         }.also { if (!it) descriptor.close() }
     }
 
@@ -267,7 +267,7 @@ class InstallService : Service() {
     }
 
     /** The install request, built off the main thread (the package copy can take a while), or null after closing [descriptor]. */
-    private fun installRequest(descriptor: ParcelFileDescriptor, language: String?): JSONObject? {
+    private fun installRequest(descriptor: ParcelFileDescriptor, language: String?, prewarm: Boolean): JSONObject? {
         val (packageRoot, profileRoot) = try {
             roots()
         } catch (error: Exception) {
@@ -285,6 +285,7 @@ class InstallService : Service() {
             .put("source_kind", "rom")
             .put("package_root", packageRoot.absolutePath)
             .put("download_hd_textures", false)
+            .put("prewarm_pipelines", prewarm)
             .put("android", androidTarget(this, profileRoot))
             .apply { if (language != null) put("game_language", language) }
     }

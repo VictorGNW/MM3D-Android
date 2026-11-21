@@ -30,7 +30,9 @@ adb devices -l
 adb install -r "$MM3D_APK"
 ```
 
-Open **Moonfall Curse**, select your own compatible dump and let Forge finish. On a test device, verify first launch, gameplay, saving and reloading, overlay editing, controller input and background/resume. The Android release guide tracks the remaining qualification checks.
+Open **Moonfall Curse** and select your own compatible dump. The installer can prepare known shaders and Vulkan pipelines before you play. This option starts enabled and makes installation take longer, uses extra cache space and may warm up the phone. Turn it off to skip the optional device-pipeline warmup; Forge still prepares the required game data and portable shader pack.
+
+On a test device, verify first launch, gameplay, saving and reloading, overlay editing, controller input and background/resume. The Android release guide tracks the remaining qualification checks.
 
 If startup fails, collect the app's diagnostics or read the native logs:
 
