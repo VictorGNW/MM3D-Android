@@ -29,6 +29,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.RadioButton
@@ -93,6 +94,8 @@ class InstallerActivity : Activity() {
     private lateinit var languages: RadioGroup
     private lateinit var select: Button
     private lateinit var installButton: Button
+    private lateinit var prewarmPipelines: CheckBox
+    private lateinit var prewarmDetails: TextView
     private lateinit var cancel: Button
     private lateinit var play: Button
     private lateinit var hdBox: LinearLayout
@@ -982,10 +985,11 @@ class InstallerActivity : Activity() {
         val language = codes.getOrNull(languageIndex())
         val name = romName
         val document = romDocument
+        val prewarm = prewarmPipelines.isChecked
         rom = null
         interrupted = null
         refreshInstall(true)
-        withService { it.install(descriptor, name, language, document) }
+        withService { it.install(descriptor, name, language, document, prewarm) }
     }
 
     private fun withService(action: (InstallService) -> Unit) {
@@ -1193,6 +1197,9 @@ class InstallerActivity : Activity() {
         val ready = rom != null && recognizedLabel != null
         installButton.visibility = if (ready) Button.VISIBLE else Button.GONE
         installButton.isEnabled = ready && !busy
+        prewarmPipelines.visibility = installButton.visibility
+        prewarmDetails.visibility = installButton.visibility
+        prewarmPipelines.isEnabled = ready && !busy
     }
 
     /**
@@ -1400,6 +1407,22 @@ class InstallerActivity : Activity() {
             visibility = Button.GONE
             setOnClickListener { pickRom() }
         }
+        val preferences = getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+        prewarmPipelines = CheckBox(this).apply {
+            text = getString(R.string.forge_prewarm_pipelines)
+            minHeight = dp(48)
+            visibility = CheckBox.GONE
+            isChecked = preferences.getBoolean("prewarm_pipelines", true)
+            setOnCheckedChangeListener { _, checked ->
+                preferences.edit().putBoolean("prewarm_pipelines", checked).apply()
+            }
+        }
+        prewarmDetails = TextView(this).apply {
+            text = getString(R.string.forge_prewarm_pipelines_details)
+            visibility = TextView.GONE
+        }
+        body.addView(prewarmPipelines)
+        body.addView(prewarmDetails)
         installButton = Button(this).apply {
             text = getString(R.string.forge_install)
             minHeight = dp(48)

@@ -210,4 +210,6 @@
     <string name="diagnostics_crash_message">The last session ended with: %1$s. A diagnostics report can help with an issue report; nothing is sent anywhere.</string>
     <string name="diagnostics_view">View report</string>
     <string name="diagnostics_dismiss">Dismiss</string>
+    <string name="forge_prewarm_pipelines">Prepare known shaders before playing</string>
+    <string name="forge_prewarm_pipelines_details">May reduce stutter when you first play. Installation takes longer, uses extra cache space, and may warm up the phone. Skip to install faster.</string>
 </resources>

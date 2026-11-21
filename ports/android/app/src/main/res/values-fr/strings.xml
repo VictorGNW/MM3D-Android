@@ -210,4 +210,6 @@
     <string name="diagnostics_crash_message">La dernière session s\'est terminée par : %1$s. Un rapport de diagnostic peut aider à signaler un problème ; rien n\'est envoyé nulle part.</string>
     <string name="diagnostics_view">Afficher le rapport</string>
     <string name="diagnostics_dismiss">Fermer</string>
+    <string name="forge_prewarm_pipelines">Préparer les shaders connus avant de jouer</string>
+    <string name="forge_prewarm_pipelines_details">Peut réduire les saccades au début du jeu. L’installation prend plus de temps, utilise davantage d’espace de cache et peut chauffer le téléphone. Désactivez cette option pour installer plus vite.</string>
 </resources>
