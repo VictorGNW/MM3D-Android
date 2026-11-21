@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
+    <uses-feature android:name="android.hardware.vulkan.level" android:required="false" />
     <!-- The installation's foreground service (type dataSync, InstallService), its progress
          notification (asked once on Android 13+, optional) and a partial wake lock held only
          while the job runs, so it continues with the screen locked. -->

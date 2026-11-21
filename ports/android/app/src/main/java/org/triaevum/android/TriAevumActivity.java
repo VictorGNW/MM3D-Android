@@ -61,6 +61,22 @@ public final class TriAevumActivity extends SDLActivity {
             StartupDiagnostics.stage(this, "libraries_failed " + error.getClass().getName());
             throw error;
         }
+        if (getIntent().getBooleanExtra("org.triaevum.android.USE_TURNIP", false)) {
+            try {
+                System.loadLibrary("triaevum_vulkan");
+                String directory = getApplicationInfo().nativeLibraryDir;
+                if (NativeHostBridge.INSTANCE.selectTurnip(directory)) {
+                    String loader = new File(directory, "libtriaevum_vulkan.so").getAbsolutePath();
+                    Os.setenv("SDL_VULKAN_LIBRARY", loader, true);
+                    Os.setenv("TRIAEVUM_NRI_VULKAN_LIBRARY", loader, true);
+                    StartupDiagnostics.stage(this, "turnip_selected");
+                } else {
+                    Log.w("TriAevum", "Turnip unavailable, using the system Vulkan driver");
+                }
+            } catch (UnsatisfiedLinkError | android.system.ErrnoException error) {
+                Log.w("TriAevum", "Could not use Turnip", error);
+            }
+        }
         StartupDiagnostics.stage(this, "libraries_loaded");
     }
 
@@ -73,7 +89,7 @@ public final class TriAevumActivity extends SDLActivity {
     /** The touch controls above the game surface, the same size, without taking key focus. */
     private void attachTouchControls() {
         touchInput = new TouchOverlayInput();
-        touchAdapter = new AzaharInputAdapter(touchInput);
+        touchAdapter = touchInput.createAdapter();
         // The overlay reads its preferences through the bound host while it is built.
         OverlayHost.INSTANCE.bind(this, touchAdapter);
         touchOverlay = new InputOverlay(this, null);
@@ -109,29 +125,13 @@ public final class TriAevumActivity extends SDLActivity {
         if (touchInput != null) touchInput.resume();
     }
 
-    // A controller hides the touch controls (when the user wants that); a touch shows them.
-    @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
-        if (touchInput != null && isController(event.getSource())) touchInput.controllerUsed();
-        return super.dispatchKeyEvent(event);
-    }
-
-    @Override public boolean dispatchGenericMotionEvent(android.view.MotionEvent event) {
-        if (touchInput != null && isController(event.getSource())) touchInput.controllerUsed();
-        return super.dispatchGenericMotionEvent(event);
-    }
-
     @Override public boolean dispatchTouchEvent(android.view.MotionEvent event) {
-        if (touchInput != null) touchInput.touched();
+        if (touchInput != null) touchInput.onScreenTouch(event.getActionMasked());
         // The window's touches (overlay and game surface) arrive as they happen,
         // not batched to the next display frame, for the rest of the gesture.
         if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN)
             getWindow().getDecorView().requestUnbufferedDispatch(event);
         return super.dispatchTouchEvent(event);
-    }
-
-    private static boolean isController(int source) {
-        return (source & android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD
-            || (source & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK;
     }
 
     @Override public void onWindowFocusChanged(boolean hasFocus) {

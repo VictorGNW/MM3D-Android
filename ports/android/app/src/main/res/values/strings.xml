@@ -210,4 +210,14 @@
     <string name="diagnostics_crash_message">The last session ended with: %1$s. A diagnostics report can help with an issue report; nothing is sent anywhere.</string>
     <string name="diagnostics_view">View report</string>
     <string name="diagnostics_dismiss">Dismiss</string>
+    <string name="forge_prewarm_pipelines">Prepare known shaders before playing</string>
+    <string name="forge_prewarm_pipelines_details">May reduce stutter when you first play. Installation takes longer, uses extra cache space, and may warm up the phone. Skip to install faster.</string>
+    <string name="forge_stage_percent">%1$d%%</string>
+    <string name="forge_stage_remaining">About %1$s left in this step</string>
+    <string name="forge_background_progress_hint">Continues in the background, even with the screen locked.</string>
+    <string name="forge_language_automatic">Automatic (device language)</string>
+    <string name="forge_language_automatic_button">Language: Automatic</string>
+    <string name="vulkan_unsupported">The port requires Vulkan 1.1 or later. The app will close in 3 seconds.</string>
+    <string name="vulkan_compatibility_pending">This GPU supports Vulkan 1.1. The compatibility renderer is still in development.</string>
+    <string name="vulkan_probe_failed">Could not check Vulkan support.</string>
 </resources>
