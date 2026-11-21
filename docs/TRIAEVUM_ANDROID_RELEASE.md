@@ -18,7 +18,8 @@ fails the build. versionCode = `M*10^7 + m*10^5 + p*10^3 + stage*100 + n` (alpha
 The application ids can change only until the first public release.
 
 No game assets are included in either APK. Each APK's Forge prepares the game on the device from the player's own
-decrypted cartridge image, chosen through the system document picker.
+decrypted cartridge image, chosen through the system document picker. Moonfall Curse's Android package verifies EUR and
+USA v1.1 independently and uses a shared title module for their identical executable.
 
 ## Publisher flow (per title, one at a time)
 
@@ -82,7 +83,7 @@ unchanged.
 
 | gate | Echoes of Time | Moonfall Curse |
 |---|---|---|
-| install, first launch, Forge import of the owner's ROM | pending (needs DEVICE_GRANT) | pending (needs DEVICE_GRANT) |
+| install, first launch, Forge import of the owner's ROM | pending (needs DEVICE_GRANT) | pending for EUR and USA v1.1 |
 | produce-at-install of the dekui and Project Restoration recipes | n/a | pending (host proof first) |
 | boot and deterministic scene (`--max-seconds`), SHADERC 0 / misses 0 | pending | pending |
 | touch overlay, gestures, controller | pending | pending |
@@ -107,5 +108,5 @@ the game from your own decrypted cartridge image, which you choose with the syst
 **Android: <state>.** Moonfall Curse for Android (`org.triaevum.moonfallcurse`, arm64, Android 10 or later) is built
 from the same translated title sources as the desktop release (`a32_generated_overlay_r18`). It includes no game
 assets: its installer prepares the game, including the dekui layouts and the Project Restoration layout, from your
-own EUR decrypted cartridge image. Qualified on: <device evidence>. Signing certificate SHA-256: <release
+own compatible decrypted EUR or USA v1.1 cartridge image. Qualified on: <device evidence>. Signing certificate SHA-256: <release
 certificate>.

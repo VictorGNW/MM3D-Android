@@ -105,6 +105,56 @@ class AndroidForgePackageTests(unittest.TestCase):
         self.assertEqual(sorted(roles - classified), [])
         self.assertEqual(android_forge_package.DATA_ROLES & android_forge_package.EXCLUDED_ROLES, set())
 
+    def test_mm3d_android_packages_two_verified_revisions_with_one_module(self):
+        forge = Path(__file__).resolve().parents[2] / "titles/mm3d/forge"
+        recipes = json.loads((forge / "supported_revisions.json").read_text())
+        eur, = recipes["recipes"]
+        usa = json.loads((forge / "android_usa_v11.json").read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            recipe_path = fixture.reference / "recipes/mm3d.json"
+            atomic_write_json(recipe_path, recipes)
+            record = next(item for item in fixture.files if item["role"] == "revision_recipe")
+            record.update(artifact(recipe_path, "recipes/mm3d.json"))
+            source = fixture.reference / fixture.title["sources"][0]["path"]
+            with zipfile.ZipFile(source) as archive:
+                metadata = json.loads(archive.read("TITLE_SOURCE_MANIFEST.json"))
+            metadata["build"]["code_sha256"] = eur["inputs"]["code"]["sha256"]
+            with zipfile.ZipFile(source, "w") as archive:
+                archive.writestr("TITLE_SOURCE_MANIFEST.json", json.dumps(metadata))
+            fixture.title["sources"][0].update(artifact(source, fixture.title["sources"][0]["path"]))
+            fixture.title.update(recipe=eur["id"], inputs=eur["inputs"])
+            atomic_write_json(fixture.reference / CATALOG, fixture.catalog)
+            fixture.write_manifest()
+
+            inventory = fixture.create()
+            package = fixture.output / ASSET_ROOT
+            shipped = json.loads((package / CATALOG).read_text())["titles"]
+            self.assertEqual([entry["recipe"] for entry in shipped], [eur["id"], usa["id"]])
+            self.assertEqual(shipped[0]["plugin"], shipped[1]["plugin"])
+            self.assertEqual(shipped[0]["platform_build"], shipped[1]["platform_build"])
+            self.assertEqual(shipped[1]["inputs"], usa["inputs"])
+            installed_recipes = json.loads((package / "recipes/mm3d.json").read_text())["recipes"]
+            self.assertEqual(installed_recipes, [eur, {**eur, **usa}])
+            entry = next(record for record in inventory["files"] if record["role"] == "revision_recipe")
+            self.assertEqual(entry, dict(artifact(package / "recipes/mm3d.json", "recipes/mm3d.json"),
+                                         role="revision_recipe"))
+            self.assertEqual(json.loads(recipe_path.read_text()), recipes)
+
+    def test_mm3d_android_rejects_a_variant_with_different_execution(self):
+        from android_forge_package import add_mm3d_usa_revision
+
+        forge = Path(__file__).resolve().parents[2] / "titles/mm3d/forge"
+        recipes = json.loads((forge / "supported_revisions.json").read_text())
+        eur, = recipes["recipes"]
+        catalog = {"titles": [{"recipe": eur["id"], "inputs": eur["inputs"]}]}
+        usa = json.loads((forge / "android_usa_v11.json").read_text())
+        usa["inputs"]["code"]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "verified EUR execution image"):
+            add_mm3d_usa_revision(recipes, catalog, usa)
+        self.assertEqual(len(recipes["recipes"]), 1)
+        self.assertEqual(len(catalog["titles"]), 1)
+
     def test_requires_aarch64_shared_libraries(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "lib.so"
