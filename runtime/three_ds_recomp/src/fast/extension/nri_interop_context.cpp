@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "fast/extension/nri_interop_context.h"
 #include "fast/extension/nri_stage_scope.h"
 #include "fast/extension/nri_upscaler_instances.h"
@@ -543,6 +544,9 @@ bool NriInteropContext::Initialize(VkInstance instance, VkPhysicalDevice physica
     queueFamily.familyIndex = graphicsQueueFamily;
 
     nri::DeviceCreationVKDesc desc{};
+#ifdef __ANDROID__
+    desc.libraryPath = std::getenv("TRIAEVUM_NRI_VULKAN_LIBRARY");
+#endif
     nri::CallbackInterface callback{};
     if (validationTelemetry != nullptr) {
         callback.MessageCallback = Impl::ValidationMessage;
