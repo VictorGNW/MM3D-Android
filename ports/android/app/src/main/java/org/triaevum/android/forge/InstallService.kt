@@ -60,6 +60,7 @@ class InstallService : Service() {
         val detail: String = "",
         val done: Long = 0,
         val total: Long = -1,
+        val stageRemainingMs: Long? = null,
         /** Increments with every job this process started. */
         val generation: Int = 0,
         /** The terminal event's result (refresh, repair), as JSON text. */
@@ -193,6 +194,7 @@ class InstallService : Service() {
     private fun begin(kind: ForgeJob, status: String, rom: RomDocument?, request: () -> JSONObject?): Boolean {
         if (snapshot.running) return false
         synchronized(jobLock) { cancelRequested = false }
+        firstProgressAt = 0L
         publish(Snapshot(running = true, job = kind, status = status, generation = snapshot.generation + 1))
         writeCheckpoint(STATE_RUNNING, kind, "", rom)
         // Started and promoted while the installer is in front, as Android 12+ requires.
@@ -216,7 +218,8 @@ class InstallService : Service() {
             if (job != 0L) ForgeNative.cancelJob(job)
         }
         main.post {
-            if (snapshot.running) publish(snapshot.copy(status = getString(R.string.forge_cancelling), detail = ""))
+            if (snapshot.running) publish(snapshot.copy(status = getString(R.string.forge_cancelling), detail = "",
+                done = 0, total = -1, stageRemainingMs = null))
         }
     }
 
@@ -341,20 +344,39 @@ class InstallService : Service() {
         }
     }
 
+    private var firstProgressAt = 0L
+    private var firstProgressDone = 0L
+
+    private fun measuredProgress(current: Snapshot, event: JSONObject): Snapshot {
+        val total = event.optLong("total", -1)
+        val done = event.optLong("done")
+        val now = SystemClock.elapsedRealtime()
+        if (firstProgressAt == 0L || total != current.total || done < current.done) {
+            firstProgressAt = now
+            firstProgressDone = done
+        }
+        val elapsed = now - firstProgressAt
+        return current.copy(
+            done = done,
+            total = total,
+            stageRemainingMs = InstallerProgress.remainingMs(done, total, done - firstProgressDone, elapsed),
+        )
+    }
+
     private fun progress(event: JSONObject) {
         if (!snapshot.running) return
         val current = snapshot
         val next = when (event.optString("event")) {
             // The HD pack jobs keep this app's translated status; installations show Forge's stages.
-            "stage" -> current.copy(
-                status = if (current.job?.hdPack == true) current.status else event.optString("message"),
-                detail = "", done = 0, total = -1,
-            )
+            "stage" -> {
+                firstProgressAt = 0L
+                current.copy(
+                    status = if (current.job?.hdPack == true) current.status else event.optString("message"),
+                    detail = "", done = 0, total = -1, stageRemainingMs = null,
+                )
+            }
             "report" -> current.copy(detail = event.optString("message"))
-            "progress" -> current.copy(
-                done = event.optLong("done"),
-                total = if (event.isNull("total")) -1 else event.optLong("total", -1),
-            )
+            "progress" -> measuredProgress(current, event)
             else -> return
         }
         val stageChanged = next.status != current.status

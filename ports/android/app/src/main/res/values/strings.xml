@@ -212,4 +212,9 @@
     <string name="diagnostics_dismiss">Dismiss</string>
     <string name="forge_prewarm_pipelines">Prepare known shaders before playing</string>
     <string name="forge_prewarm_pipelines_details">May reduce stutter when you first play. Installation takes longer, uses extra cache space, and may warm up the phone. Skip to install faster.</string>
+    <string name="forge_stage_percent">%1$d%%</string>
+    <string name="forge_stage_remaining">About %1$s left in this step</string>
+    <string name="forge_background_progress_hint">Continues in the background, even with the screen locked.</string>
+    <string name="forge_language_automatic">Automatic (device language)</string>
+    <string name="forge_language_automatic_button">Language: Automatic</string>
 </resources>
