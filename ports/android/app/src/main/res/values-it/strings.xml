@@ -212,4 +212,7 @@
     <string name="diagnostics_dismiss">Chiudi</string>
     <string name="forge_prewarm_pipelines">Prepara gli shader noti prima di giocare</string>
     <string name="forge_prewarm_pipelines_details">Può ridurre gli scatti all’inizio del gioco. L’installazione richiede più tempo, usa più spazio per la cache e può scaldare il telefono. Disattiva l’opzione per installare più rapidamente.</string>
+    <string name="forge_stage_percent">%1$d%%</string>
+    <string name="forge_stage_remaining">Circa %1$s per questo passaggio</string>
+    <string name="forge_background_progress_hint">Continua in background, anche con lo schermo bloccato.</string>
 </resources>

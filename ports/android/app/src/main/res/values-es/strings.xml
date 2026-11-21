@@ -212,4 +212,7 @@
     <string name="diagnostics_dismiss">Descartar</string>
     <string name="forge_prewarm_pipelines">Preparar los shaders conocidos antes de jugar</string>
     <string name="forge_prewarm_pipelines_details">Puede reducir los tirones al empezar a jugar. La instalación tarda más, ocupa más espacio de caché y puede calentar el dispositivo. Omite este paso para instalar más rápido.</string>
+    <string name="forge_stage_percent">%1$d%%</string>
+    <string name="forge_stage_remaining">Quedan unos %1$s en este paso</string>
+    <string name="forge_background_progress_hint">Continúa en segundo plano, incluso con la pantalla bloqueada.</string>
 </resources>

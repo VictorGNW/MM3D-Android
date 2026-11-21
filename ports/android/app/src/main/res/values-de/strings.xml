@@ -212,4 +212,7 @@
     <string name="diagnostics_dismiss">Schließen</string>
     <string name="forge_prewarm_pipelines">Bekannte Shader vor dem Spielen vorbereiten</string>
     <string name="forge_prewarm_pipelines_details">Kann Ruckler beim ersten Spielen verringern. Die Installation dauert länger, benötigt zusätzlichen Cache-Speicher und kann das Gerät erwärmen. Überspringen geht schneller.</string>
+    <string name="forge_stage_percent">%1$d%%</string>
+    <string name="forge_stage_remaining">Noch etwa %1$s für diesen Schritt</string>
+    <string name="forge_background_progress_hint">Läuft im Hintergrund weiter, auch bei gesperrtem Bildschirm.</string>
 </resources>
