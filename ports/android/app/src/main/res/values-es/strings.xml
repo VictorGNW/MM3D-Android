@@ -215,4 +215,6 @@
     <string name="forge_stage_percent">%1$d%%</string>
     <string name="forge_stage_remaining">Quedan unos %1$s en este paso</string>
     <string name="forge_background_progress_hint">Continúa en segundo plano, incluso con la pantalla bloqueada.</string>
+    <string name="forge_language_automatic">Automático (idioma del dispositivo)</string>
+    <string name="forge_language_automatic_button">Idioma: Automático</string>
 </resources>

@@ -215,4 +215,6 @@
     <string name="forge_stage_percent">%1$d%%</string>
     <string name="forge_stage_remaining">Noch etwa %1$s für diesen Schritt</string>
     <string name="forge_background_progress_hint">Läuft im Hintergrund weiter, auch bei gesperrtem Bildschirm.</string>
+    <string name="forge_language_automatic">Automatisch (Gerätesprache)</string>
+    <string name="forge_language_automatic_button">Sprache: Automatisch</string>
 </resources>

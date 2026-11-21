@@ -79,7 +79,7 @@ import java.io.File
  * with the download size comes first (never a Wi-Fi-only rule), offline the screen says so, and an
  * archive downloaded elsewhere can be imported with the document picker. Both run in
  * [InstallService] with progress and Cancel; the next installation from the ROM applies the pack.
- * The installer's language follows decision 8 ([ForgeLocale]): the ROM's game languages.
+ * The installer follows the device language by default or keeps an explicit interface override.
  */
 class InstallerActivity : Activity() {
     private lateinit var stateBox: LinearLayout
@@ -120,8 +120,6 @@ class InstallerActivity : Activity() {
     private var hdCheckAgain = false
     /** Re-renders the card under the state in the current language (after a language change). */
     private var cardRenderer: (() -> Unit)? = null
-    /** The game languages of the ROM in use (recognized or installed); empty before one is known. */
-    private var romLanguages: List<String> = emptyList()
     /** The language the views were built in. */
     private var builtLanguage = ""
     /** The running short job of this screen (recognition, language, preview), not the service's. */
@@ -196,8 +194,7 @@ class InstallerActivity : Activity() {
         super.onCreate(state)
         StartupDiagnostics.installCrashHandler(this, "forge")
         refreshTried = state?.getBoolean(KEY_REFRESH_TRIED) ?: false
-        // The languages of the ROM last seen, until this start knows its own.
-        applyLanguage(ForgeLocale.lastRomLanguages(this))
+        applyInstallerLanguage()
         builtLanguage = ForgeLocale.current(this)
         window.statusBarColor = BACKGROUND_COLOR
         window.navigationBarColor = BACKGROUND_COLOR
@@ -229,18 +226,22 @@ class InstallerActivity : Activity() {
         if (newConfig.locales[0].language != builtLanguage) rebuildForLanguage()
     }
 
-    /**
-     * Decision 8: the installer's language for the ROM's game languages [rom] (empty before one is
-     * known): the kept choice, else the system language, else English, as the desktop Forge does.
-     */
-    private fun applyLanguage(rom: List<String>) {
-        romLanguages = rom
-        if (rom.isNotEmpty()) ForgeLocale.rememberRomLanguages(this, rom)
-        val code = ForgeLocale.choose(rom, listOf(ForgeLocale.savedChoice(getExternalFilesDir(null)), ForgeLocale.systemLanguage()))
-        // Android 13+ answers with onConfigurationChanged; older versions changed the resources in place.
-        if (ForgeLocale.apply(this, code) && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && ::stateBox.isInitialized) {
+    private fun applyInstallerLanguage() {
+        val chosen = ForgeLocale.savedChoice(getExternalFilesDir(null))
+            ?.takeIf { it in ForgeLocale.INSTALLER_LANGUAGES }
+        val code = ForgeLocale.choose(chosen, ForgeLocale.systemLanguages(this))
+        val changed = ForgeLocale.apply(this, code, followDevice = chosen == null)
+        if (changed && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && ::stateBox.isInitialized) {
             rebuildForLanguage()
+        } else if (::languageButton.isInitialized) {
+            languageButton.text = installerLanguageLabel()
         }
+    }
+
+    private fun installerLanguageLabel(): String {
+        val choice = ForgeLocale.savedChoice(getExternalFilesDir(null))?.takeIf { it in ForgeLocale.INSTALLER_LANGUAGES }
+        return if (choice == null) getString(R.string.forge_language_automatic_button)
+        else getString(R.string.forge_language_button, ForgeLocale.NATIVE_NAMES[choice] ?: choice)
     }
 
     /** Builds the views again in the new language, keeping what the screen shows. */
@@ -263,20 +264,22 @@ class InstallerActivity : Activity() {
         inspect()
     }
 
-    /** The installer language switch: the languages decision 8 allows for the ROM in use. */
+    /** The interface language is independent from the game's language. */
     private fun chooseInstallerLanguage() {
-        val offered = ForgeLocale.offered(romLanguages)
-        val current = ForgeLocale.current(this)
-        val names = offered.map { ForgeLocale.NATIVE_NAMES[it] ?: it }.toTypedArray()
+        val offered = listOf(null) + ForgeLocale.INSTALLER_LANGUAGES
+        val current = ForgeLocale.savedChoice(getExternalFilesDir(null))
+        val names = offered.map {
+            if (it == null) getString(R.string.forge_language_automatic) else ForgeLocale.NATIVE_NAMES[it] ?: it
+        }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.forge_language_title)
-            .setSingleChoiceItems(names, offered.indexOf(current)) { dialog, index ->
+            .setSingleChoiceItems(names, offered.indexOf(current).coerceAtLeast(0)) { dialog, index ->
                 dialog.dismiss()
                 val profileRoot = getExternalFilesDir(null)
                 if (profileRoot == null || !ForgeLocale.saveChoice(profileRoot, offered[index])) {
                     status.text = getString(R.string.forge_language_not_kept)
                 }
-                applyLanguage(romLanguages)
+                applyInstallerLanguage()
             }
             .setNegativeButton(R.string.forge_cancel, null)
             .show()
@@ -435,6 +438,7 @@ class InstallerActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        applyInstallerLanguage()
         refreshBanner()
     }
 
@@ -950,8 +954,6 @@ class InstallerActivity : Activity() {
                 }
                 status.text = getString(if (document == null) R.string.forge_ready_to_install else R.string.forge_choose_language)
                 detail.text = ""
-                // Decision 8: the installer speaks one of this ROM's game languages.
-                if (entries.isNotEmpty()) applyLanguage(entries.map { it.first })
             }
             "failed" -> {
                 rom?.close()
@@ -1081,8 +1083,6 @@ class InstallerActivity : Activity() {
                             document.optString("selected"), installed = true, error = false)
                     }
                     if (select != null) status.text = getString(R.string.forge_language_saved)
-                    // Decision 8: the installed game's languages, unless a picked ROM is shown.
-                    if (rom == null && entries.isNotEmpty()) applyLanguage(entries.map { it.first })
                 }
                 "failed" -> {
                     failed = true
@@ -1484,8 +1484,7 @@ class InstallerActivity : Activity() {
         }
         // The installer's language (decision 8): one of the ROM's game languages.
         languageButton = Button(this).apply {
-            val current = ForgeLocale.current(context)
-            text = getString(R.string.forge_language_button, ForgeLocale.NATIVE_NAMES[current] ?: current)
+            text = installerLanguageLabel()
             minHeight = dp(48)
             setOnClickListener { chooseInstallerLanguage() }
         }
